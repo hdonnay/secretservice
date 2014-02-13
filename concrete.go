@@ -292,7 +292,7 @@ func (c Collection) Modified() time.Time {
 	return time.Unix(v.Value().(int64), 0)
 }
 func (c Collection) Items() []Item {
-	// How did we get here if we can get on the bus now?
+	// How did we get here if we can't get on the bus now?
 	conn, _ := dbus.SessionBus()
 	p, _ := c.GetProperty(_CollectionItems)
 	objs := p.Value().([]dbus.ObjectPath)
