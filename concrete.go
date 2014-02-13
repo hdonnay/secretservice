@@ -212,9 +212,19 @@ func (s Service) SetAlias(a string, p dbus.ObjectPath) error {
 	return nil
 }
 
-// UNIMPLEMENTED
+// List Colletions
 func (s Service) Collections() ([]Collection, error) {
-	return []Collection{}, nil
+    conn, err := dbus.SessionBus()
+    if err != nil {
+        return []Collection{}, err
+    }
+	v, _ := s.GetProperty(_ServiceCollections)
+    paths := v.Value().([]dbus.ObjectPath)
+    out := make([]Collection, len(paths))
+    for i, path := range paths {
+        out[i] = Collection{conn.Object(ServiceName, path)}
+    }
+	return out, nil
 }
 
 type Collection struct{ *dbus.Object }
