@@ -11,16 +11,14 @@ import (
 type Prompt struct{ *dbus.Object }
 
 // This runs the prompt.
-//
-// spec: Prompt(IN String window-id);
 func (p Prompt) Prompt(window_id string) error {
+	// spec: Prompt(IN String window-id);
 	return p.Call(_PromptPrompt, 0, window_id).Err
 }
 
 // Make a prompt go away.
-//
-// spec: Dismiss(void);
 func (p Prompt) Dismiss() error {
+	// spec: Dismiss(void);
 	return p.Call(_PromptDismiss, 0).Err
 }
 
@@ -40,16 +38,14 @@ func (i Item) simpleCall(method string, args ...interface{}) error {
 }
 
 // Use the passed Session to set the Secret in this Item
-//
-// spec: SetSecret(IN Secret secret);
 func (i Item) SetSecret(s Secret) error {
+	// spec: SetSecret(IN Secret secret);
 	return i.simpleCall("SetSecret", s)
 }
 
 // Use the passed Session to retrieve the Secret in this Item
-//
-// spec: GetSecret(IN ObjectPath session, OUT Secret secret);
 func (i Item) GetSecret(s Session) (Secret, error) {
+	// spec: GetSecret(IN ObjectPath session, OUT Secret secret);
 	var ret Secret
 	call := i.Call(_ItemGetSecret, 0, s.Path())
 	if call.Err != nil {
@@ -60,9 +56,8 @@ func (i Item) GetSecret(s Session) (Secret, error) {
 }
 
 // Any prompt should be handled transparently.
-//
-// spec: Delete (OUT ObjectPath Prompt);
 func (i Item) Delete() error {
+	// spec: Delete (OUT ObjectPath Prompt);
 	return i.simpleCall("Delete")
 }
 func (i Item) Locked() bool {
@@ -108,9 +103,8 @@ func (s Service) simpleCall(method string, args ...interface{}) error {
 }
 
 // First argument is the algorithm used. Currently only "plain" is supported.
-//
-// spec: OpenSession(IN String algorithm, IN Variant input, OUT Variant output, OUT ObjectPath result);
 func (s Service) OpenSession(algo string, args ...interface{}) (Session, error) {
+	// spec: OpenSession(IN String algorithm, IN Variant input, OUT Variant output, OUT ObjectPath result);
 	var ret Session
 	conn, err := dbus.SessionBus()
 	if err != nil {
@@ -132,9 +126,8 @@ func (s Service) OpenSession(algo string, args ...interface{}) (Session, error) 
 }
 
 // The first argument is the Label for the collection, and the second is an (optional) alias.
-//
-// spec: CreateCollection(IN Dict<String,Variant> properties, IN String alias, OUT ObjectPath collection, OUT ObjectPath prompt);
 func (s Service) CreateCollection(label, alias string) (Collection, error) {
+	// spec: CreateCollection(IN Dict<String,Variant> properties, IN String alias, OUT ObjectPath collection, OUT ObjectPath prompt);
 	var collectionPath, promptPath dbus.ObjectPath
 	conn, err := dbus.SessionBus()
 	if err != nil {
@@ -158,8 +151,8 @@ func (s Service) CreateCollection(label, alias string) (Collection, error) {
 	return Collection{conn.Object(ServiceName, collectionPath)}, nil
 }
 
-// spec: SearchItems(IN Dict<String,String> attributes, OUT Array<ObjectPath> unlocked, OUT Array<ObjectPath> locked);
 func (s Service) SearchItems(attrs map[string]string) ([]Item, []Item, error) {
+	// spec: SearchItems(IN Dict<String,String> attributes, OUT Array<ObjectPath> unlocked, OUT Array<ObjectPath> locked);
 	var unlocked, locked []dbus.ObjectPath
 	conn, err := dbus.SessionBus()
 	if err != nil {
@@ -181,19 +174,19 @@ func (s Service) SearchItems(attrs map[string]string) ([]Item, []Item, error) {
 	return retUnlocked, retLocked, nil
 }
 
-// spec: Unlock(IN Array<ObjectPath> objects, OUT Array<ObjectPath> unlocked, OUT ObjectPath prompt);
 func (s Service) Unlock(o []Object) ([]Object, error) {
+	// spec: Unlock(IN Array<ObjectPath> objects, OUT Array<ObjectPath> unlocked, OUT ObjectPath prompt);
 	return nil, nil
 }
 
-// spec: Lock(IN Array<ObjectPath> objects, OUT Array<ObjectPath> locked, OUT ObjectPath Prompt);
 func (s Service) Lock(o []Object) ([]Object, error) {
+	// spec: Lock(IN Array<ObjectPath> objects, OUT Array<ObjectPath> locked, OUT ObjectPath Prompt);
 	return nil, nil
 }
 
 // The specified action is to return map[ObjectPath]Secret, but map[Label]Secret is much more useful.
-// spec: GetSecrets(IN Array<ObjectPath> items, IN ObjectPath session, OUT Dict<ObjectPath,Secret> secrets);
 func (s Service) GetSecrets(items []Item, ses Session) (map[dbus.ObjectPath]Secret, error) {
+	// spec: GetSecrets(IN Array<ObjectPath> items, IN ObjectPath session, OUT Dict<ObjectPath,Secret> secrets);
 	arg := make([]dbus.ObjectPath, len(items))
 	for i, o := range items {
 		arg[i] = o.Path()
@@ -207,15 +200,19 @@ func (s Service) GetSecrets(items []Item, ses Session) (map[dbus.ObjectPath]Secr
 	return ret, err
 }
 
-// spec: ReadAlias(IN String name, OUT ObjectPath collection);
+// UNIMPLEMENTED
 func (s Service) ReadAlias(a string) (Collection, error) {
+	// spec: ReadAlias(IN String name, OUT ObjectPath collection);
 	return Collection{}, nil
 }
 
-// spec: SetAlias(IN String name, IN ObjectPath collection);
+// UNIMPLEMENTED
 func (s Service) SetAlias(a string, p dbus.ObjectPath) error {
+	// spec: SetAlias(IN String name, IN ObjectPath collection);
 	return nil
 }
+
+// UNIMPLEMENTED
 func (s Service) Collections() ([]Collection, error) {
 	return []Collection{}, nil
 }
@@ -235,13 +232,13 @@ func (c Collection) simpleCall(method string, args ...interface{}) error {
 	return checkPrompt(promptPath)
 }
 
-// spec: Delete(OUT ObjectPath prompt);
 func (c Collection) Delete() error {
+	// spec: Delete(OUT ObjectPath prompt);
 	return c.simpleCall("Delete")
 }
 
-// spec: SearchItems(IN Dict<String,String> attributes, OUT Array<ObjectPath> results);
 func (c Collection) SearchItems(attr map[string]string) ([]Item, error) {
+	// spec: SearchItems(IN Dict<String,String> attributes, OUT Array<ObjectPath> results);
 	i := []Item{}
 	conn, err := dbus.SessionBus()
 	if err != nil {
@@ -259,8 +256,8 @@ func (c Collection) SearchItems(attr map[string]string) ([]Item, error) {
 	return i, nil
 }
 
-// spec: CreateItem(IN Dict<String,Variant> properties, IN Secret secret, IN Boolean replace, OUT ObjectPath item, OUT ObjectPath prompt);
 func (c Collection) CreateItem(label string, attr map[string]string, s Secret, replace bool) (Item, error) {
+	// spec: CreateItem(IN Dict<String,Variant> properties, IN Secret secret, IN Boolean replace, OUT ObjectPath item, OUT ObjectPath prompt);
 	i := Item{}
 	conn, err := dbus.SessionBus()
 	if err != nil {
@@ -316,7 +313,7 @@ func (c Collection) SetLabel(l string) error {
 type Session struct{ *dbus.Object }
 
 // Yes, really, it's the only method that exists on a Session.
-// spec: Close(void);
 func (s Session) Close() {
+	// spec: Close(void);
 	s.Go(_SessionClose, dbus.FlagNoReplyExpected, nil)
 }
