@@ -174,11 +174,13 @@ func (s Service) SearchItems(attrs map[string]string) ([]Item, []Item, error) {
 	return retUnlocked, retLocked, nil
 }
 
+// UNIMPLEMENTED
 func (s Service) Unlock(o []Object) ([]Object, error) {
 	// spec: Unlock(IN Array<ObjectPath> objects, OUT Array<ObjectPath> unlocked, OUT ObjectPath prompt);
 	return nil, nil
 }
 
+// UNIMPLEMENTED
 func (s Service) Lock(o []Object) ([]Object, error) {
 	// spec: Lock(IN Array<ObjectPath> objects, OUT Array<ObjectPath> locked, OUT ObjectPath Prompt);
 	return nil, nil
@@ -200,33 +202,42 @@ func (s Service) GetSecrets(items []Item, ses Session) (map[dbus.ObjectPath]Secr
 	return ret, err
 }
 
-// UNIMPLEMENTED
 func (s Service) ReadAlias(a string) (Collection, error) {
 	// spec: ReadAlias(IN String name, OUT ObjectPath collection);
-	return Collection{}, nil
+	conn, err := dbus.SessionBus()
+	if err != nil {
+		return Collection{}, call.Err
+	}
+	call := s.Call(_ServiceReadAlias, 0, a)
+	if call.Err != nil {
+		return Collection{}, call.Err
+	}
+	path := call.Value.(dbus.ObjectPath)
+	return Collection{conn.Object(ServiceName, path)}, nil
 }
 
-// UNIMPLEMENTED
-func (s Service) SetAlias(a string, p dbus.ObjectPath) error {
+func (s Service) SetAlias(a string, c Collection) error {
 	// spec: SetAlias(IN String name, IN ObjectPath collection);
-	return nil
+	return simpleCall("SetAlias", a, c.Path())
 }
 
 // List Colletions
 func (s Service) Collections() ([]Collection, error) {
-    conn, err := dbus.SessionBus()
-    if err != nil {
-        return []Collection{}, err
-    }
+	conn, err := dbus.SessionBus()
+	if err != nil {
+		return []Collection{}, err
+	}
 	v, _ := s.GetProperty(_ServiceCollections)
-    paths := v.Value().([]dbus.ObjectPath)
-    out := make([]Collection, len(paths))
-    for i, path := range paths {
-        out[i] = Collection{conn.Object(ServiceName, path)}
-    }
+	paths := v.Value().([]dbus.ObjectPath)
+	out := make([]Collection, len(paths))
+	for i, path := range paths {
+		out[i] = Collection{conn.Object(ServiceName, path)}
+	}
 	return out, nil
 }
 
+// type Collection implements the org.freedesktop.SecretService.Collection
+// interface, using function calls for property accessors/setters
 type Collection struct{ *dbus.Object }
 
 func (c Collection) simpleCall(method string, args ...interface{}) error {

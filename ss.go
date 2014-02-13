@@ -48,6 +48,8 @@ const (
 	_ServiceUnlock           = "org.freedesktop.Secret.Service.Unlock"
 	_ServiceLock             = "org.freedesktop.Secret.Service.Lock"
 	_ServiceGetSecrets       = "org.freedesktop.Secret.Service.GetSecrets"
+	_ServiceReadAlias        = "org.freedesktop.Secret.Service.ReadAlias"
+	_ServiceSetAlias         = "org.freedesktop.Secret.Service.SetAlias"
 	//Properties
 	_ServiceAlias       = "org.freedesktop.Secret.Service.Alias"
 	_ServiceCollections = "org.freedesktop.Secret.Service.Collections"
