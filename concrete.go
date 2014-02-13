@@ -10,14 +10,18 @@ import (
 
 type Prompt struct{ *dbus.Object }
 
+// This runs the prompt.
+//
 // spec: Prompt(IN String window-id);
 func (p Prompt) Prompt(window_id string) error {
 	return p.Call(_PromptPrompt, 0, window_id).Err
 }
 
+// Make a prompt go away.
+//
 // spec: Dismiss(void);
 func (p Prompt) Dismiss() error {
-	return nil
+	return p.Call(_PromptDismiss, 0).Err
 }
 
 type Item struct{ *dbus.Object }
@@ -36,12 +40,14 @@ func (i Item) simpleCall(method string, args ...interface{}) error {
 }
 
 // Use the passed Session to set the Secret in this Item
+//
 // spec: SetSecret(IN Secret secret);
 func (i Item) SetSecret(s Secret) error {
 	return i.simpleCall("SetSecret", s)
 }
 
 // Use the passed Session to retrieve the Secret in this Item
+//
 // spec: GetSecret(IN ObjectPath session, OUT Secret secret);
 func (i Item) GetSecret(s Session) (Secret, error) {
 	var ret Secret
@@ -54,6 +60,7 @@ func (i Item) GetSecret(s Session) (Secret, error) {
 }
 
 // Any prompt should be handled transparently.
+//
 // spec: Delete (OUT ObjectPath Prompt);
 func (i Item) Delete() error {
 	return i.simpleCall("Delete")
@@ -101,6 +108,7 @@ func (s Service) simpleCall(method string, args ...interface{}) error {
 }
 
 // First argument is the algorithm used. Currently only "plain" is supported.
+//
 // spec: OpenSession(IN String algorithm, IN Variant input, OUT Variant output, OUT ObjectPath result);
 func (s Service) OpenSession(algo string, args ...interface{}) (Session, error) {
 	var ret Session
@@ -124,6 +132,7 @@ func (s Service) OpenSession(algo string, args ...interface{}) (Session, error) 
 }
 
 // The first argument is the Label for the collection, and the second is an (optional) alias.
+//
 // spec: CreateCollection(IN Dict<String,Variant> properties, IN String alias, OUT ObjectPath collection, OUT ObjectPath prompt);
 func (s Service) CreateCollection(label, alias string) (Collection, error) {
 	var collectionPath, promptPath dbus.ObjectPath

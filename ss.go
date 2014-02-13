@@ -32,7 +32,8 @@ const (
 
 	_Prompt = "org.freedesktop.Secret.Prompt"
 	// Methods
-	_PromptPrompt = "org.freedesktop.Secret.Prompt.Prompt"
+	_PromptPrompt  = "org.freedesktop.Secret.Prompt.Prompt"
+	_PromptDismiss = "org.freedesktop.Secret.Prompt.Dismiss"
 	// Properties
 
 	_Session = "org.freedesktop.Secret.Session"
