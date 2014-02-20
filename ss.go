@@ -3,8 +3,11 @@
 package ss
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"fmt"
 	dbus "github.com/guelfey/go.dbus"
+	"github.com/vgorin/cryptogo/pad"
 )
 
 const (
@@ -66,12 +69,16 @@ const (
 	_CollectionModified = "org.freedesktop.Secret.Collection.Modified"
 	_CollectionItems    = "org.freedesktop.Secret.Collection.Items"
 
+	AlgoPlain = "plain"
+	AlgoDH    = "dh-ietf1024-sha256-aes128-cbc-pkcs7"
+
 	text_plain = "text/plain; charset=utf8"
 )
 
 var (
 	UnknownContentType = fmt.Errorf("Content-Type is unknown for this Secret")
 	InvalidAlgorithm   = fmt.Errorf("unknown algorithm")
+	InvalidSession     = fmt.Errorf("invalid session object")
 )
 
 type Object interface {
@@ -94,10 +101,23 @@ func (s *Secret) SetSecret(secret string) error {
 	return nil
 }
 
-// The return vaue could conceivably be an actual []byte...
-// The ContentType should be able to be relied upon...
-func (s *Secret) GetValue() string {
-	return string(s.Value)
+// This method is specific to the bindings
+func (s *Secret) Open(ses Session) ([]byte, error) {
+	switch ses.Algorithm {
+	case AlgoPlain:
+		return s.Value, nil
+	case AlgoDH:
+		tmp := make([]byte, len(s.Value))
+		block, err := aes.NewCipher(ses.Key)
+		if err != nil {
+			return []byte{}, err
+		}
+		dec := cipher.NewCBCDecrypter(block, s.Parameters)
+		dec.CryptBlocks(tmp, s.Value)
+		return pad.PKCS7Unpad(tmp)
+	default:
+		return []byte{}, InvalidSession
+	}
 }
 
 func DialService() (Service, error) {
