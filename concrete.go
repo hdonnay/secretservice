@@ -231,21 +231,25 @@ func (s Service) GetSecrets(items []Item, ses Session) (map[dbus.ObjectPath]Secr
 
 func (s Service) ReadAlias(a string) (Collection, error) {
 	// spec: ReadAlias(IN String name, OUT ObjectPath collection);
+	var path dbus.ObjectPath
 	conn, err := dbus.SessionBus()
 	if err != nil {
-		return Collection{}, call.Err
+		return Collection{}, err
 	}
 	call := s.Call(_ServiceReadAlias, 0, a)
 	if call.Err != nil {
 		return Collection{}, call.Err
 	}
-	path := call.Value.(dbus.ObjectPath)
+	err = call.Store(&path)
+	if err != nil {
+		return Collection{}, err
+	}
 	return Collection{conn.Object(ServiceName, path)}, nil
 }
 
 func (s Service) SetAlias(a string, c Collection) error {
 	// spec: SetAlias(IN String name, IN ObjectPath collection);
-	return simpleCall("SetAlias", a, c.Path())
+	return s.simpleCall("SetAlias", a, c.Path())
 }
 
 // List Colletions
