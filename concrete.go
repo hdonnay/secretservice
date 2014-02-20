@@ -127,7 +127,9 @@ func (s Service) OpenSession(algo string, args ...interface{}) (Session, error) 
 	case AlgoDH:
 		// see http://standards.freedesktop.org/secret-service/ch07s03.html
 		var sessionPath dbus.ObjectPath
-		var srvPub, symKey []byte
+		var srvReply dbus.Variant
+		var srvPub []byte
+		symKey := make([]byte, 16)
 		grp, err := dhkx.GetGroup(2)
 		if err != nil {
 			return ret, err
@@ -136,10 +138,11 @@ func (s Service) OpenSession(algo string, args ...interface{}) (Session, error) 
 		if err != nil {
 			return ret, err
 		}
-		err = s.Call(_ServiceOpenSession, 0, algo, dbus.MakeVariant(privKey.Bytes())).Store(&srvPub, &sessionPath)
+		err = s.Call(_ServiceOpenSession, 0, algo, dbus.MakeVariant(privKey.Bytes())).Store(&srvReply, &sessionPath)
 		if err != nil {
 			return ret, err
 		}
+		srvPub = srvReply.Value().([]byte)
 		sharedKey, err := grp.ComputeKey(dhkx.NewPublicKey(srvPub), privKey)
 		if err != nil {
 			return ret, err
