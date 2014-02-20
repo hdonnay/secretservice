@@ -110,6 +110,11 @@ func (s Service) simpleCall(method string, args ...interface{}) error {
 
 // First argument is the algorithm used. "plain" (AlgoPlain) and
 // "dh-ietf1024-sha256-aes128-cbc-pkcs7" (AlgoDH) are supported.
+//
+// The dbus api has the caller supply their DH public key and returns
+// the other side's public key, but this implementation generates a
+// new keypair, does the exchange, derives the encryption key, and then
+// stores it in the returned Session.
 func (s Service) OpenSession(algo string, args ...interface{}) (Session, error) {
 	// spec: OpenSession(IN String algorithm, IN Variant input, OUT Variant output, OUT ObjectPath result);
 	var ret Session
