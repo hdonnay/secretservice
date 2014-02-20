@@ -4,6 +4,7 @@ package ss
 
 import (
 	"code.google.com/p/go.crypto/hkdf"
+	"crypto/aes"
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
@@ -129,7 +130,7 @@ func (s Service) OpenSession(algo string, args ...interface{}) (Session, error) 
 		var sessionPath dbus.ObjectPath
 		var srvReply dbus.Variant
 		var srvPub []byte
-		symKey := make([]byte, 16)
+		symKey := make([]byte, aes.BlockSize)
 		grp, err := dhkx.GetGroup(2)
 		if err != nil {
 			return ret, err
