@@ -108,7 +108,8 @@ func (s Service) simpleCall(method string, args ...interface{}) error {
 	return checkPrompt(promptPath)
 }
 
-// First argument is the algorithm used. Currently only "plain" is supported.
+// First argument is the algorithm used. "plain" (AlgoPlain) and
+// "dh-ietf1024-sha256-aes128-cbc-pkcs7" (AlgoDH) are supported.
 func (s Service) OpenSession(algo string, args ...interface{}) (Session, error) {
 	// spec: OpenSession(IN String algorithm, IN Variant input, OUT Variant output, OUT ObjectPath result);
 	var ret Session
