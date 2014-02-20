@@ -3,8 +3,13 @@
 package ss
 
 import (
+	"code.google.com/p/go.crypto/hkdf"
+	"crypto/rand"
+	"crypto/sha256"
 	"fmt"
 	dbus "github.com/guelfey/go.dbus"
+	"github.com/monnand/dhkx"
+	"io"
 	"time"
 )
 
@@ -111,18 +116,40 @@ func (s Service) OpenSession(algo string, args ...interface{}) (Session, error) 
 		return ret, err
 	}
 	switch algo {
-	case "plain":
+	case AlgoPlain:
 		var discard dbus.Variant
 		var sessionPath dbus.ObjectPath
-		err := s.Call(_ServiceOpenSession, 0, algo, dbus.MakeVariant("")).Store(&discard, &sessionPath)
+		err = s.Call(_ServiceOpenSession, 0, algo, dbus.MakeVariant("")).Store(&discard, &sessionPath)
 		if err != nil {
 			return ret, err
 		}
-		return Session{conn.Object(ServiceName, sessionPath)}, nil
+		ret = Session{conn.Object(ServiceName, sessionPath), algo, nil}
+	case AlgoDH:
+		// see http://standards.freedesktop.org/secret-service/ch07s03.html
+		var sessionPath dbus.ObjectPath
+		var srvPub, symKey []byte
+		grp, err := dhkx.GetGroup(2)
+		if err != nil {
+			return ret, err
+		}
+		privKey, err := grp.GeneratePrivateKey(rand.Reader)
+		if err != nil {
+			return ret, err
+		}
+		err = s.Call(_ServiceOpenSession, 0, algo, dbus.MakeVariant(privKey.Bytes())).Store(&srvPub, &sessionPath)
+		if err != nil {
+			return ret, err
+		}
+		sharedKey, err := grp.ComputeKey(dhkx.NewPublicKey(srvPub), privKey)
+		if err != nil {
+			return ret, err
+		}
+		_, err = io.ReadFull(hkdf.New(sha256.New, sharedKey.Bytes(), nil, nil), symKey)
+		ret = Session{conn.Object(ServiceName, sessionPath), algo, symKey}
 	default:
-		return ret, InvalidAlgorithm
+		err = InvalidAlgorithm
 	}
-	return ret, nil
+	return ret, err
 }
 
 // The first argument is the Label for the collection, and the second is an (optional) alias.
@@ -331,7 +358,11 @@ func (c Collection) SetLabel(l string) error {
 	return c.Call(setProp, 0, _Collection, "Label", l).Err
 }
 
-type Session struct{ *dbus.Object }
+type Session struct {
+	*dbus.Object
+	Algorithm string
+	Key       []byte
+}
 
 // Yes, really, it's the only method that exists on a Session.
 func (s Session) Close() {
