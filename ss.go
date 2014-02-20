@@ -96,25 +96,39 @@ type Secret struct {
 
 // Uses text/plain as the Content-type which may need to change in the future.
 // Probably not, though.
-func (s *Secret) SetSecret(secret string) error {
-	s.Value = []byte(secret)
+func (s *Secret) SetSecret(session Session, secret []byte) error {
+	switch session.Algorithm {
+	case AlgoPlain:
+		s.Value = secret
+	case AlgoDH:
+		block, err := aes.NewCipher(session.Key)
+		if err != nil {
+			return err
+		}
+		enc := cipher.NewCBCEncrypter(block, s.Parameters)
+		ciphertext := pad.PKCS7Pad(secret, aes.BlockSize)
+		s.Value = make([]byte, len(ciphertext))
+		enc.CryptBlocks(s.Value, ciphertext)
+	default:
+		return InvalidSession
+	}
 	return nil
 }
 
 // This method is specific to the bindings
-func (s *Secret) Open(ses Session) ([]byte, error) {
-	switch ses.Algorithm {
+func (s *Secret) GetSecret(session Session) ([]byte, error) {
+	switch session.Algorithm {
 	case AlgoPlain:
 		return s.Value, nil
 	case AlgoDH:
-		tmp := make([]byte, len(s.Value))
-		block, err := aes.NewCipher(ses.Key)
+		paddedPlaintext := make([]byte, len(s.Value))
+		block, err := aes.NewCipher(session.Key)
 		if err != nil {
 			return []byte{}, err
 		}
 		dec := cipher.NewCBCDecrypter(block, s.Parameters)
-		dec.CryptBlocks(tmp, s.Value)
-		return pad.PKCS7Unpad(tmp)
+		dec.CryptBlocks(paddedPlaintext, s.Value)
+		return pad.PKCS7Unpad(paddedPlaintext)
 	default:
 		return []byte{}, InvalidSession
 	}
