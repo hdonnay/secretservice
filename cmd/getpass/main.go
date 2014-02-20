@@ -59,16 +59,16 @@ func main() {
 					fmt.Fprintf(os.Stderr, "GetSecret error: %v\n%v\n", s, err)
 					os.Exit(1)
 				}
-				pass, err := s.Open(session)
+				pass, err := s.GetSecret(session)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Open error: %v\n%v\n", s, err)
 					os.Exit(1)
 				}
 				fmt.Fprintf(os.Stdout, "%v", string(pass))
-				break
+				goto Leave
 			}
 		}
 	}
-
+Leave:
 	os.Exit(0)
 }
