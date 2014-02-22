@@ -3,15 +3,16 @@
 package ss
 
 import (
-	"code.google.com/p/go.crypto/hkdf"
 	"crypto/aes"
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
-	dbus "github.com/guelfey/go.dbus"
-	"github.com/monnand/dhkx"
 	"io"
 	"time"
+
+	"code.google.com/p/go.crypto/hkdf"
+	dbus "github.com/guelfey/go.dbus"
+	"github.com/monnand/dhkx"
 )
 
 type Prompt struct{ *dbus.Object }
