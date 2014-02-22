@@ -14,11 +14,10 @@ func checkPrompt(promptPath dbus.ObjectPath) error {
 	if promptPath == noPrompt {
 		return nil
 	}
-	conn, err := dbus.SessionBusPrivate()
+	conn, err := dbus.SessionBus()
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
 	pr := Prompt{conn.Object(ServiceName, promptPath)}
 	// I have no idea what this argument is or how to use it.
 	err = pr.Prompt("secretservice.go")
