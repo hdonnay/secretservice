@@ -62,6 +62,20 @@ Donec et mollis dolor. Praesent et diam eget libero egestas mattis sit amet vita
 	}
 )
 
+func TestInvalidSession(t *testing.T) {
+	var s Secret
+	p := plainTest[0]
+	err := s.SetSecret(Session{}, p.in)
+	if err != InvalidSession {
+		t.Error("did not receieve InvalidSession on set")
+	}
+	_, err = s.GetSecret(Session{})
+	if err != InvalidSession {
+		t.Error("did not receieve InvalidSession on get")
+	}
+
+}
+
 func TestPlainEncrypt(t *testing.T) {
 	for _, p := range plainTest {
 		var s Secret
