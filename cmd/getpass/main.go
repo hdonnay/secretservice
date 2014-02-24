@@ -9,11 +9,24 @@ import (
 	"github.com/hdonnay/secretservice"
 )
 
-var plain = flag.Bool("p", false, "use plain transport instead of encrypted transport")
+var (
+	plain = flag.Bool("p", false, "use plain transport instead of encrypted transport")
+	l     = log.New(os.Stderr, "getpass\t", log.Ltime)
+)
+
+func init() {
+	flag.Usage = func() {
+		fmt.Println(`getpass [-p] NAME
+
+Prints secret "NAME" string-ified.
+`)
+		flag.PrintDefaults()
+		fmt.Println()
+	}
+	flag.Parse()
+}
 
 func main() {
-	l := log.New(os.Stderr, "getpass\t", log.Ltime)
-	flag.Parse()
 	algorithm := ss.AlgoDH
 	if *plain {
 		algorithm = ss.AlgoPlain
