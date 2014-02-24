@@ -59,11 +59,11 @@ Donec et mollis dolor. Praesent et diam eget libero egestas mattis sit amet vita
 func TestInvalidSession(t *testing.T) {
 	var s Secret
 	p := plainTest[0]
-	err := s.SetSecret(Session{}, p.in)
+	err := s.SetValue(Session{}, p.in)
 	if err != InvalidSession {
 		t.Error("did not receieve InvalidSession on set")
 	}
-	_, err = s.GetSecret(Session{})
+	_, err = s.GetValue(Session{})
 	if err != InvalidSession {
 		t.Error("did not receieve InvalidSession on get")
 	}
@@ -73,7 +73,7 @@ func TestInvalidSession(t *testing.T) {
 func TestPlainEncrypt(t *testing.T) {
 	for _, p := range plainTest {
 		var s Secret
-		err := s.SetSecret(plainSession, p.in)
+		err := s.SetValue(plainSession, p.in)
 		if err != nil {
 			t.Error(err)
 		}
@@ -86,7 +86,7 @@ func TestPlainEncrypt(t *testing.T) {
 
 func TestPlainDecrypt(t *testing.T) {
 	for _, p := range plainTest {
-		s, err := p.out.GetSecret(plainSession)
+		s, err := p.out.GetValue(plainSession)
 		if err != nil {
 			t.Error(err)
 		}
@@ -101,7 +101,7 @@ func TestDHEncrypt(t *testing.T) {
 	for _, p := range cryptTest {
 		var s Secret
 		s.Parameters = iv
-		err := s.SetSecret(cryptSession, p.in)
+		err := s.SetValue(cryptSession, p.in)
 		if err != nil {
 			t.Error(err)
 		}
@@ -120,7 +120,7 @@ func TestDHEncrypt(t *testing.T) {
 func TestDHDecrypt(t *testing.T) {
 	for _, p := range cryptTest {
 		p.out.Parameters = iv
-		s, err := p.out.GetSecret(cryptSession)
+		s, err := p.out.GetValue(cryptSession)
 		if err != nil {
 			t.Error(err)
 		}
