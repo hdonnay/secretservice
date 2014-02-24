@@ -18,9 +18,38 @@ import (
 type Prompt struct{ *dbus.Object }
 
 // This runs the prompt.
-func (p Prompt) Prompt(window_id string) error {
+//
+// The prompt will timeout after 1 minute
+func (p Prompt) Prompt(window_id string) (dbus.Variant, error) {
 	// spec: Prompt(IN String window-id);
-	return p.Call(_PromptPrompt, 0, window_id).Err
+	empty := dbus.Variant{}
+	conn, err := dbus.SessionBus()
+	if err != nil {
+		return empty, err
+	}
+	cmp := make(chan *dbus.Signal, 5)
+	conn.Signal(cmp)
+	call := p.Call(_PromptPrompt, 0, window_id)
+	if call.Err != nil {
+		return empty, call.Err
+	}
+	for {
+		select {
+		case sig := <-cmp:
+			if sig.Name == _PromptCompleted {
+				if sig.Body[0].(bool) {
+					return empty, PromptDismissed
+				}
+				return sig.Body[1].(dbus.Variant), nil
+			}
+		case <-time.After(time.Duration(time.Minute)):
+			err := p.Dismiss()
+			if err != nil {
+				panic(err)
+			}
+			return empty, Timeout
+		}
+	}
 }
 
 // Make a prompt go away.
@@ -31,23 +60,10 @@ func (p Prompt) Dismiss() error {
 
 type Item struct{ *dbus.Object }
 
-func (i Item) simpleCall(method string, args ...interface{}) error {
-	var promptPath dbus.ObjectPath
-	if len(args) == 0 {
-		args = append(args, 0)
-	}
-	call := i.Call(fmt.Sprintf("%s.%s", _Item, method), 0, args...)
-	if call.Err != nil {
-		return call.Err
-	}
-	call.Store(&promptPath)
-	return checkPrompt(promptPath)
-}
-
 // Use the passed Session to set the Secret in this Item
 func (i Item) SetSecret(s Secret) error {
 	// spec: SetSecret(IN Secret secret);
-	return i.simpleCall("SetSecret", s)
+	return simpleCall(i.Path(), _ItemSetSecret, s)
 }
 
 // Use the passed Session to retrieve the Secret in this Item
@@ -65,29 +81,44 @@ func (i Item) GetSecret(s Session) (Secret, error) {
 // Any prompt should be handled transparently.
 func (i Item) Delete() error {
 	// spec: Delete (OUT ObjectPath Prompt);
-	return i.simpleCall("Delete")
+	return simpleCall(i.Path(), _ItemDelete)
 }
 func (i Item) Locked() bool {
-	v, _ := i.GetProperty(_ItemLocked)
+	v, err := i.GetProperty(_ItemLocked)
+	if err != nil {
+		panic(err)
+	}
 	return v.Value().(bool)
 }
 func (i Item) Created() time.Time {
-	v, _ := i.GetProperty(_ItemCreated)
-	return time.Unix(v.Value().(int64), 0)
+	v, err := i.GetProperty(_ItemCreated)
+	if err != nil {
+		panic(err)
+	}
+	return time.Unix(int64(v.Value().(uint64)), 0)
 }
 func (i Item) Modified() time.Time {
-	v, _ := i.GetProperty(_ItemModified)
-	return time.Unix(v.Value().(int64), 0)
+	v, err := i.GetProperty(_ItemModified)
+	if err != nil {
+		panic(err)
+	}
+	return time.Unix(int64(v.Value().(uint64)), 0)
 }
 func (i Item) GetAttributes() map[string]string {
-	v, _ := i.GetProperty(_ItemAttributes)
+	v, err := i.GetProperty(_ItemAttributes)
+	if err != nil {
+		panic(err)
+	}
 	return v.Value().(map[string]string)
 }
 func (i Item) SetAttributes(attr map[string]string) error {
 	return i.Call(setProp, 0, _Item, "Attributes", attr).Err
 }
 func (i Item) GetLabel() string {
-	v, _ := i.GetProperty(_ItemLabel)
+	v, err := i.GetProperty(_ItemLabel)
+	if err != nil {
+		panic(err)
+	}
 	return v.Value().(string)
 }
 func (i Item) SetLabel(l string) error {
@@ -95,19 +126,6 @@ func (i Item) SetLabel(l string) error {
 }
 
 type Service struct{ *dbus.Object }
-
-func (s Service) simpleCall(method string, args ...interface{}) error {
-	var promptPath dbus.ObjectPath
-	if len(args) == 0 {
-		args = append(args, 0)
-	}
-	call := s.Call(method, 0, args...)
-	if call.Err != nil {
-		return call.Err
-	}
-	call.Store(&promptPath)
-	return checkPrompt(promptPath)
-}
 
 // First argument is the algorithm used. "plain" (AlgoPlain) and
 // "dh-ietf1024-sha256-aes128-cbc-pkcs7" (AlgoDH) are supported.
@@ -182,11 +200,15 @@ func (s Service) CreateCollection(label, alias string) (Collection, error) {
 	if err != nil {
 		return Collection{}, err
 	}
-	err = checkPrompt(promptPath)
+	if dbus.ObjectPath("/") != collectionPath {
+		return Collection{conn.Object(ServiceName, collectionPath)}, nil
+	}
+	v, err := checkPrompt(promptPath)
 	if err != nil {
 		return Collection{}, err
 	}
-	return Collection{conn.Object(ServiceName, collectionPath)}, nil
+	return Collection{conn.Object(ServiceName, dbus.ObjectPath(v.Value().(string)))},
+		fmt.Errorf("unable to create collection")
 }
 
 func (s Service) SearchItems(attrs map[string]string) ([]Item, []Item, error) {
@@ -213,9 +235,26 @@ func (s Service) SearchItems(attrs map[string]string) ([]Item, []Item, error) {
 }
 
 // UNIMPLEMENTED
-func (s Service) Unlock(o []Object) ([]Object, error) {
+func (s Service) Unlock(o []dbus.ObjectPath) ([]dbus.ObjectPath, error) {
 	// spec: Unlock(IN Array<ObjectPath> objects, OUT Array<ObjectPath> unlocked, OUT ObjectPath prompt);
-	return nil, nil
+	var ret []dbus.ObjectPath
+	var prompt dbus.ObjectPath
+	call := s.Call(_ServiceUnlock, 0, o)
+	if call.Err != nil {
+		return []dbus.ObjectPath{}, call.Err
+	}
+	err := call.Store(&ret, &prompt)
+	if err != nil {
+		return []dbus.ObjectPath{}, call.Err
+	}
+	v, err := checkPrompt(prompt)
+	if err != nil {
+		return []dbus.ObjectPath{}, call.Err
+	}
+	for _, o := range v.Value().([]dbus.ObjectPath) {
+		ret = append(ret, o)
+	}
+	return ret, nil
 }
 
 // UNIMPLEMENTED
@@ -260,44 +299,34 @@ func (s Service) ReadAlias(a string) (Collection, error) {
 
 func (s Service) SetAlias(a string, c Collection) error {
 	// spec: SetAlias(IN String name, IN ObjectPath collection);
-	return s.simpleCall("SetAlias", a, c.Path())
+	return simpleCall(s.Path(), _ServiceSetAlias, a, c.Path())
 }
 
 // List Colletions
-func (s Service) Collections() ([]Collection, error) {
+func (s Service) Collections() []Collection {
 	conn, err := dbus.SessionBus()
 	if err != nil {
-		return []Collection{}, err
+		panic(err)
 	}
-	v, _ := s.GetProperty(_ServiceCollections)
+	v, err := s.GetProperty(_ServiceCollections)
+	if err != nil {
+		panic(err)
+	}
 	paths := v.Value().([]dbus.ObjectPath)
 	out := make([]Collection, len(paths))
 	for i, path := range paths {
 		out[i] = Collection{conn.Object(ServiceName, path)}
 	}
-	return out, nil
+	return out
 }
 
 // type Collection implements the org.freedesktop.SecretService.Collection
 // interface, using function calls for property accessors/setters
 type Collection struct{ *dbus.Object }
 
-func (c Collection) simpleCall(method string, args ...interface{}) error {
-	var promptPath dbus.ObjectPath
-	if len(args) == 0 {
-		args = append(args, 0)
-	}
-	call := c.Call(fmt.Sprintf("%s.%s", _Collection, method), 0, args...)
-	if call.Err != nil {
-		return call.Err
-	}
-	call.Store(&promptPath)
-	return checkPrompt(promptPath)
-}
-
 func (c Collection) Delete() error {
 	// spec: Delete(OUT ObjectPath prompt);
-	return c.simpleCall("Delete")
+	return simpleCall(c.Path(), _CollectionDelete)
 }
 
 func (c Collection) SearchItems(attr map[string]string) ([]Item, error) {
@@ -343,16 +372,26 @@ func (c Collection) CreateItem(label string, attr map[string]string, s Secret, r
 	return i, nil
 }
 func (c Collection) Locked() bool {
-	v, _ := c.GetProperty(_CollectionLocked)
-	return v.Value().(bool)
+	v, err := c.GetProperty(_CollectionLocked)
+	if err != nil {
+		panic(err)
+	}
+	l := v.Value()
+	return l.(bool)
 }
 func (c Collection) Created() time.Time {
-	v, _ := c.GetProperty(_CollectionCreated)
-	return time.Unix(v.Value().(int64), 0)
+	v, err := c.GetProperty(_CollectionCreated)
+	if err != nil {
+		panic(err)
+	}
+	return time.Unix(int64(v.Value().(uint64)), 0).UTC()
 }
 func (c Collection) Modified() time.Time {
-	v, _ := c.GetProperty(_CollectionModified)
-	return time.Unix(v.Value().(int64), 0)
+	v, err := c.GetProperty(_CollectionModified)
+	if err != nil {
+		panic(err)
+	}
+	return time.Unix(int64(v.Value().(uint64)), 0).UTC()
 }
 func (c Collection) Items() []Item {
 	// How did we get here if we can't get on the bus now?
@@ -366,11 +405,32 @@ func (c Collection) Items() []Item {
 	return i
 }
 func (c Collection) GetLabel() string {
-	v, _ := c.GetProperty(_CollectionLabel)
+	v, err := c.GetProperty(_CollectionLabel)
+	if err != nil {
+		panic(err)
+	}
 	return v.Value().(string)
 }
 func (c Collection) SetLabel(l string) error {
 	return c.Call(setProp, 0, _Collection, "Label", l).Err
+}
+
+func (c Collection) Unlock() error {
+	conn, _ := dbus.SessionBus()
+	var prompt dbus.ObjectPath
+	u := make([]dbus.ObjectPath, 1)
+	srv := conn.Object(ServiceName, ServicePath)
+	call := srv.Call(_ServiceUnlock, 0, []dbus.ObjectPath{c.Path()})
+	if call.Err != nil {
+		return call.Err
+	}
+	if err := call.Store(&u, &prompt); err != nil {
+		return err
+	}
+	if _, err := checkPrompt(prompt); err != nil {
+		return err
+	}
+	return nil
 }
 
 type Session struct {
@@ -383,4 +443,14 @@ type Session struct {
 func (s Session) Close() {
 	// spec: Close(void);
 	s.Go(_SessionClose, dbus.FlagNoReplyExpected, nil)
+}
+
+func (s Session) NewSecret() Secret {
+	r := Secret{s.Path(), nil, nil, text_plain}
+	switch s.Algorithm {
+	case AlgoDH:
+		r.Parameters = make([]byte, aes.BlockSize)
+		io.ReadFull(rand.Reader, r.Parameters)
+	}
+	return r
 }
