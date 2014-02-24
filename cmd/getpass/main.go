@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/hdonnay/secretservice"
 	"os"
+
+	"github.com/hdonnay/secretservice"
 )
 
 var plain = flag.Bool("p", false, "use plain transport instead of encrypted transport")
@@ -35,16 +36,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "debug: session opened: %+v\n", session)
 	}
 
-	collection, err := srv.Collections()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Collections error: %v\n", err)
-		os.Exit(1)
-	}
-	if *debug {
-		fmt.Fprintf(os.Stderr, "debug: collections: %+v\n", collection)
-	}
-
-	for _, c := range collection {
+	for _, c := range srv.Collections() {
 		for _, i := range c.Items() {
 			if *debug {
 				fmt.Fprintf(os.Stderr, "debug: item '%s' %+v\n", i.GetLabel(), i)
@@ -59,7 +51,7 @@ func main() {
 					fmt.Fprintf(os.Stderr, "GetSecret error: %v\n%v\n", s, err)
 					os.Exit(1)
 				}
-				pass, err := s.GetSecret(session)
+				pass, err := s.GetValue(session)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Open error: %v\n%v\n", s, err)
 					os.Exit(1)
