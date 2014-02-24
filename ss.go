@@ -39,6 +39,8 @@ const (
 	_PromptPrompt  = "org.freedesktop.Secret.Prompt.Prompt"
 	_PromptDismiss = "org.freedesktop.Secret.Prompt.Dismiss"
 	// Properties
+	// Signals
+	_PromptCompleted = "org.freedesktop.Secret.Prompt.Completed"
 
 	_Session = "org.freedesktop.Secret.Session"
 	// Methods
@@ -70,6 +72,8 @@ const (
 	_CollectionModified = "org.freedesktop.Secret.Collection.Modified"
 	_CollectionItems    = "org.freedesktop.Secret.Collection.Items"
 
+	_Introspect = "org.freedesktop.DBus.Introspectable.Introspect"
+
 	AlgoPlain = "plain"
 	AlgoDH    = "dh-ietf1024-sha256-aes128-cbc-pkcs7"
 
@@ -80,6 +84,8 @@ var (
 	UnknownContentType = fmt.Errorf("Content-Type is unknown for this Secret")
 	InvalidAlgorithm   = fmt.Errorf("unknown algorithm")
 	InvalidSession     = fmt.Errorf("invalid session object")
+	PromptDismissed    = fmt.Errorf("prompt dismissed")
+	Timeout            = fmt.Errorf("timeout")
 )
 
 type Object interface {
@@ -97,7 +103,7 @@ type Secret struct {
 
 // Uses text/plain as the Content-type which may need to change in the future.
 // Probably not, though.
-func (s *Secret) SetSecret(session Session, secret []byte) error {
+func (s *Secret) SetValue(session Session, secret []byte) error {
 	switch session.Algorithm {
 	case AlgoPlain:
 		s.Value = secret
@@ -117,7 +123,7 @@ func (s *Secret) SetSecret(session Session, secret []byte) error {
 }
 
 // This method is specific to the bindings
-func (s *Secret) GetSecret(session Session) ([]byte, error) {
+func (s *Secret) GetValue(session Session) ([]byte, error) {
 	switch session.Algorithm {
 	case AlgoPlain:
 		return s.Value, nil
