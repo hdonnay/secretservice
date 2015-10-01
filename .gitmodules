@@ -1,0 +1,9 @@
+[submodule "vendor/github.com/guelfey/go.dbus"]
+	path = vendor/github.com/guelfey/go.dbus
+	url = https://github.com/guelfey/go.dbus
+[submodule "vendor/github.com/monnand/dhkx"]
+	path = vendor/github.com/monnand/dhkx
+	url = https://github.com/monnand/dhkx
+[submodule "vendor/github.com/vgorin/cryptogo"]
+	path = vendor/github.com/vgorin/cryptogo
+	url = https://github.com/vgorin/cryptogo

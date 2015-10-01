@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	plain = flag.Bool("p", false, "use plain transport instead of encrypted transport")
-	l     = log.New(os.Stderr, "getpass\t", log.Ltime)
+	plain   = flag.Bool("p", false, "use plain transport instead of encrypted transport")
+	newline = flag.Bool("n", false, "append a newline to output")
+	l       = log.New(os.Stderr, "getpass\t", log.Ltime)
 )
 
 func init() {
@@ -58,6 +59,9 @@ func main() {
 					l.Fatalf("Open error: %v\n", err)
 				}
 				fmt.Printf("%v", string(pass))
+				if *newline {
+					fmt.Printf("\n")
+				}
 				goto Leave
 			}
 		}

@@ -10,7 +10,7 @@ import (
 	"io"
 	"time"
 
-	"code.google.com/p/go.crypto/hkdf"
+	"golang.org/x/crypto/hkdf"
 	dbus "github.com/guelfey/go.dbus"
 	"github.com/monnand/dhkx"
 )
